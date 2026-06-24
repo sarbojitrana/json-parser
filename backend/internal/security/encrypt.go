@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"parser/internal/config"
 )
 
 func deriveKey(password string) []byte {
@@ -16,7 +17,8 @@ func deriveKey(password string) []byte {
 	return hasher.Sum(nil)
 }
 
-func EncryptPayload(plaintext string, secretKey string) (string, error) {
+func EncryptPayload(plaintext string) (string, error) {
+	secretKey := cfg.Security.SecretKey
 	key := deriveKey(secretKey)
 	block, err := aes.NewCipher(key)
 	if err != nil {
