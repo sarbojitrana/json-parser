@@ -4,10 +4,12 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
+	"parser/internal/config"
 	"fmt"
 )
 
-func DecryptPayload(ciphertextHex string, secretKey string) (string, error) {
+func DecryptPayload(ciphertextHex string) (string, error) {
+	secretKey := cfg.Security.SecretKey
 	if len(ciphertextHex) < 24 {
 		return ciphertextHex, nil
 	}
