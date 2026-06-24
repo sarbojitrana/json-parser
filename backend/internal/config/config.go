@@ -15,10 +15,15 @@ type Config struct {
 	Primary  Primary        `koanf:"primary" validate:"required"`
 	Server   ServerConfig   `koanf:"server" validate:"required"`
 	Database DatabaseConfig `koanf:"database" validate:"required"`
+	Security SecurityConfig `koanf:"security" validate:"required"`
 }
 
 type Primary struct {
 	Env string `koanf:"env" validate:"required"`
+}
+
+type SecurityConfig struct {
+	SecretKey string `koanf:"secret_key" validate:"required"`
 }
 
 type ServerConfig struct {

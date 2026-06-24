@@ -641,7 +641,6 @@ func (h *Handler) UploadWorkflow(c echo.Context) error {
 				Message: err.Error(),
 			},
 		)
-		
 		return c.JSON(
 			http.StatusBadRequest,
 			map[string]string{
