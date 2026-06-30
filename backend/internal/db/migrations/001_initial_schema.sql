@@ -42,6 +42,31 @@ CREATE TABLE workflow_events(
 
     created_at TIMESTAMP DEFAULT NOW()
 );
+CREATE OR REPLACE FUNCTION prevent_workflow_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'workflow_events is read-only. Updates are not allowed.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER workflow_events_no_update
+BEFORE UPDATE
+ON workflow_events
+FOR EACH ROW
+EXECUTE FUNCTION prevent_workflow_update();
+
+CREATE OR REPLACE FUNCTION prevent_workflow_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'workflow_events is read-only. Deletes are not allowed.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER workflow_events_no_delete
+BEFORE DELETE
+ON workflow_events
+FOR EACH ROW
+EXECUTE FUNCTION prevent_workflow_delete();
 
 CREATE TABLE application_initiated(
     id BIGSERIAL PRIMARY KEY,

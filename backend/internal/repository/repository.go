@@ -522,7 +522,7 @@ func (r *Repository) GetMappingsByServiceID(
 	return mappings, nil
 }
 
-func (r *Repository) DeleteApplication(
+//func (r *Repository) DeleteApplication(
 	ctx context.Context,
 	applID int64,
 	serviceID int64,
@@ -541,9 +541,9 @@ func (r *Repository) DeleteApplication(
 		applID,
 		serviceID,
 		rootType,
-	)
+	)//
 
-	return err
+	return err//
 }
 
 func (r *Repository) CreateLog(
