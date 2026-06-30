@@ -3,19 +3,23 @@ package repository
 import (
 	"context"
 
+	"parser/internal/config"
 	"parser/internal/model"
+	"parser/internal/security"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Repository struct {
-	db *pgxpool.Pool
+	db  *pgxpool.Pool
+	cfg *config.Config
 }
 
-func New(db *pgxpool.Pool) *Repository {
+func New(db *pgxpool.Pool, cfg *config.Config) *Repository {
 	return &Repository{
-		db: db,
+		db:  db,
+		cfg: cfg,
 	}
 }
 
@@ -86,9 +90,13 @@ func (r *Repository) CreateWorkflowEvent(
 	event model.WorkflowEvent,
 ) (int64, error) {
 
+	if enc, err := security.EncryptPayload(string(event.RawPayload), r.cfg.Security.SecretKey); err == nil {
+		event.RawPayload = []byte(enc)
+	}
+
 	var id int64
 
-	err := r.db.QueryRow(
+	err = r.db.QueryRow(
 		ctx,
 		`
 		INSERT INTO workflow_events(
@@ -145,7 +153,19 @@ func (r *Repository) CreateApplicationInitiated(
 	app model.ApplicationInitiated,
 ) error {
 
-	_, err := r.db.Exec(
+	if enc, err := security.EncryptPayload(app.AppliedBy, r.cfg.Security.SecretKey); err == nil {
+		app.AppliedBy = enc
+	}
+
+	if enc, err := security.EncryptPayload(app.ApplRefNo, r.cfg.Security.SecretKey); err == nil {
+		app.ApplRefNo = enc
+	}
+
+	if enc, err := security.EncryptPayload(app.SubmissionLocation, r.cfg.Security.SecretKey); err == nil {
+		app.SubmissionLocation = enc
+	}
+
+	_, err = r.db.Exec(
 		ctx,
 		`
 		INSERT INTO application_initiated(
@@ -188,7 +208,6 @@ func (r *Repository) CreateApplicationInitiated(
 
 			amount =
 				EXCLUDED.amount
-
 		`,
 		app.ApplID,
 		app.ServiceID,
@@ -209,7 +228,23 @@ func (r *Repository) CreateApplicationExecution(
 	app model.ApplicationExecution,
 ) error {
 
-	_, err := r.db.Exec(
+	if enc, err := security.EncryptPayload(app.UserName, r.cfg.Security.SecretKey); err == nil {
+		app.UserName = enc
+	}
+
+	if enc, err := security.EncryptPayload(app.Designation, r.cfg.Security.SecretKey); err == nil {
+		app.Designation = enc
+	}
+
+	if enc, err := security.EncryptPayload(app.LocationName, r.cfg.Security.SecretKey); err == nil {
+		app.LocationName = enc
+	}
+
+	if enc, err := security.EncryptPayload(app.Remarks, r.cfg.Security.SecretKey); err == nil {
+		app.Remarks = enc
+	}
+
+	_, err = r.db.Exec(
 		ctx,
 		`
 		INSERT INTO application_execution(
@@ -340,6 +375,12 @@ func (r *Repository) GetWorkflowEvents(
 			return nil, err
 		}
 
+		dec, err := security.DecryptPayload(string(event.RawPayload), r.cfg.Security.SecretKey)
+		if err != nil {
+			return nil, err
+		}
+		event.RawPayload = []byte(dec)
+
 		events = append(
 			events,
 			event,
@@ -356,7 +397,6 @@ func (r *Repository) GetWorkflowEvents(
 
 	return events, nil
 }
-
 
 func (r *Repository) GetApplicationInitiated(
 	ctx context.Context,
@@ -409,6 +449,24 @@ func (r *Repository) GetApplicationInitiated(
 
 		return nil, err
 	}
+
+	decAppliedBy, err := security.DecryptPayload(app.AppliedBy, r.cfg.Security.SecretKey)
+	if err != nil {
+		return nil, err
+	}
+	app.AppliedBy = decAppliedBy
+
+	decApplRefNo, err := security.DecryptPayload(app.ApplRefNo, r.cfg.Security.SecretKey)
+	if err != nil {
+		return nil, err
+	}
+	app.ApplRefNo = decApplRefNo
+
+	decSubmissionLocation, err := security.DecryptPayload(app.SubmissionLocation, r.cfg.Security.SecretKey)
+	if err != nil {
+		return nil, err
+	}
+	app.SubmissionLocation = decSubmissionLocation
 
 	return &app, nil
 }
@@ -473,6 +531,30 @@ func (r *Repository) GetApplicationExecution(
 
 		return nil, err
 	}
+
+	decUserName, err := security.DecryptPayload(execution.UserName, r.cfg.Security.SecretKey)
+	if err != nil {
+		return nil, err
+	}
+	execution.UserName = decUserName
+
+	decDesignation, err := security.DecryptPayload(execution.Designation, r.cfg.Security.SecretKey)
+	if err != nil {
+		return nil, err
+	}
+	execution.Designation = decDesignation
+
+	decLocationName, err := security.DecryptPayload(execution.LocationName, r.cfg.Security.SecretKey)
+	if err != nil {
+		return nil, err
+	}
+	execution.LocationName = decLocationName
+
+	decRemarks, err := security.DecryptPayload(execution.Remarks, r.cfg.Security.SecretKey)
+	if err != nil {
+		return nil, err
+	}
+	execution.Remarks = decRemarks
 
 	return &execution, nil
 }
