@@ -2,13 +2,37 @@ CREATE TABLE services(
     service_group_id BIGINT PRIMARY KEY,
     service_name TEXT NOT NULL
 );
+CREATE OR REPLACE FUNCTION prevent_services_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'services is read-only. Updates are not allowed.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER services_no_update
+BEFORE UPDATE
+ON services
+FOR EACH ROW
+EXECUTE FUNCTION prevent_services_update();
+
+CREATE OR REPLACE FUNCTION prevent_services_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'services is read-only. Deletes are not allowed.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER services_no_delete
+BEFORE DELETE
+ON services
+FOR EACH ROW
+EXECUTE FUNCTION prevent_services_delete();
 
 CREATE TABLE service_mappings (
     id BIGSERIAL PRIMARY KEY,
 
     service_group_id BIGINT NOT NULL
-        REFERENCES services(service_group_id)
-        ON DELETE CASCADE,
+        REFERENCES services(service_group_id),
 
     section_name TEXT,
     section_id BIGINT,
@@ -21,6 +45,31 @@ CREATE TABLE service_mappings (
 
     UNIQUE(service_group_id, field_id)
 );
+CREATE OR REPLACE FUNCTION prevent_service_mappings_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'service_mappings is read-only. Updates are not allowed.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER service_mappings_no_update
+BEFORE UPDATE
+ON service_mappings
+FOR EACH ROW
+EXECUTE FUNCTION prevent_service_mappings_update();
+
+CREATE OR REPLACE FUNCTION prevent_service_mappings_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'service_mappings is read-only. Deletes are not allowed.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER service_mappings_no_delete
+BEFORE DELETE
+ON service_mappings
+FOR EACH ROW
+EXECUTE FUNCTION prevent_service_mappings_delete();
 
 CREATE TABLE workflow_events(
     id BIGSERIAL PRIMARY KEY,
@@ -42,6 +91,31 @@ CREATE TABLE workflow_events(
 
     created_at TIMESTAMP DEFAULT NOW()
 );
+CREATE OR REPLACE FUNCTION prevent_workflow_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'workflow_events is read-only. Updates are not allowed.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER workflow_events_no_update
+BEFORE UPDATE
+ON workflow_events
+FOR EACH ROW
+EXECUTE FUNCTION prevent_workflow_update();
+
+CREATE OR REPLACE FUNCTION prevent_workflow_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'workflow_events is read-only. Deletes are not allowed.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER workflow_events_no_delete
+BEFORE DELETE
+ON workflow_events
+FOR EACH ROW
+EXECUTE FUNCTION prevent_workflow_delete();
 
 CREATE TABLE applications (
     id BIGSERIAL PRIMARY KEY,
@@ -77,6 +151,31 @@ CREATE TABLE applications (
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE OR REPLACE FUNCTION prevent_applications_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'applications is read-only. Updates are not allowed.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER applications_no_update
+BEFORE UPDATE
+ON applications
+FOR EACH ROW
+EXECUTE FUNCTION prevent_applications_update();
+
+CREATE OR REPLACE FUNCTION prevent_applications_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'applications is read-only. Deletes are not allowed.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER applications_no_delete
+BEFORE DELETE
+ON applications
+FOR EACH ROW
+EXECUTE FUNCTION prevent_applications_delete();
 
 CREATE INDEX idx_applications_submission_date
 ON applications(submission_date DESC);
