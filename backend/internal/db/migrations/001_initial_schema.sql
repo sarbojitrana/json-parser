@@ -32,8 +32,7 @@ CREATE TABLE service_mappings (
     id BIGSERIAL PRIMARY KEY,
 
     service_group_id BIGINT NOT NULL
-        REFERENCES services(service_group_id)
-        ON DELETE CASCADE,
+        REFERENCES services(service_group_id),
 
     section_name TEXT,
     section_id BIGINT,
