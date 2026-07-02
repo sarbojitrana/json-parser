@@ -318,31 +318,30 @@ func (r *Repository) GetAttributeIDs(
 		FROM service_mappings
 		WHERE service_group_id = @service_group_id
 		AND (
-			(
-				section_name = 'Applicant''s Address Details'
-				AND (
-					(field_name = 'District' AND input_type = 'custLGDHierarchy')
-					OR
-					(field_name = 'Block' AND input_type = 'custLGDHierarchy')
-					OR
-					(field_name = 'Sub-Division' AND input_type = 'custLGDHierarchy')
-					OR
-					(field_name = 'Pincode & Post Office' AND input_type = 'dropDown')
-				)
-			)
-			OR
-			(
-				section_name = 'Applicant''s Personal Details'
-				AND (
-					(field_name = 'Applicant''s Salutation')
-					OR
-					(field_name = 'Applicant''s First Name')
-					OR
-					(field_name = 'Applicant''s Middle Name')
-					OR
-					(field_name = 'Applicant''s Last Name')
-				)
-			)
+		    (
+		        section_name ILIKE 'Applicant''s Address details'
+		        AND (
+		            (field_name = 'District' AND input_type = 'custLGDHierarchy')
+		            OR
+		            (field_name = 'Block' AND input_type = 'custLGDHierarchy')
+		            OR
+		            (field_name IN ('Sub-Division', 'Sub Division') AND input_type = 'custLGDHierarchy')
+		            OR
+		            (field_name IN ('Pincode & Post Office', 'Pincode And Postoffice', 'Post Office & Pincode') AND input_type = 'dropDown')
+		        )
+		    )
+		    OR
+		    (
+		        section_name ILIKE 'Applicant''s Personal details'
+		        AND (
+		            field_name IN (
+		                'Applicant''s Salutation',
+		                'Applicant''s First Name',
+		                'Applicant''s Middle Name',
+		                'Applicant''s Last Name'
+		            )
+		        )
+		    )
 		)
 	`
 
@@ -386,7 +385,7 @@ func (r *Repository) GetAttributeIDs(
 		case "Block":
 			ids.Block = fieldID
 
-		case "Sub-Division":
+		case "Sub Division":
 			ids.SubDivision = fieldID
 
 		case "Pincode & Post Office":

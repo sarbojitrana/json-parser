@@ -315,6 +315,13 @@ func populateApplication(
 	data map[string]any,
 	ids model.AttributeIDs,
 ) {
+	
+	fmt.Println(ids)
+
+	fmt.Println(data[ids.Salutation])
+	fmt.Println(data[ids.FirstName])
+	fmt.Println(data[ids.MiddleName])
+	fmt.Println(data[ids.LastName])
 
 	if value, ok := data[ids.District]; ok {
 
@@ -361,8 +368,14 @@ func populateApplication(
 		)
 	}
 
+	salutation := ""
+
+	if value, ok := data[ids.Salutation]; ok {
+		_, salutation = parseLGD(toString(value))
+	}
+
 	applicantName := joinName(
-		toString(data[ids.Salutation]),
+		salutation,
 		toString(data[ids.FirstName]),
 		toString(data[ids.MiddleName]),
 		toString(data[ids.LastName]),
