@@ -315,13 +315,6 @@ func populateApplication(
 	data map[string]any,
 	ids model.AttributeIDs,
 ) {
-	
-	fmt.Println(ids)
-
-	fmt.Println(data[ids.Salutation])
-	fmt.Println(data[ids.FirstName])
-	fmt.Println(data[ids.MiddleName])
-	fmt.Println(data[ids.LastName])
 
 	if value, ok := data[ids.District]; ok {
 
