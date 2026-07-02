@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"parser/internal/model"
@@ -13,10 +14,7 @@ type Parser struct{}
 
 type ParseResult struct {
 	WorkflowEvents []model.WorkflowEvent
-
-	InitiatedApps []model.ApplicationInitiated
-
-	ExecutionApps []model.ApplicationExecution
+	Application    []model.Application
 }
 
 type Payload struct {
@@ -30,14 +28,12 @@ func NewParser() *Parser {
 
 func (p *Parser) Parse(
 	raw []byte,
+	attributeIDs map[int64]model.AttributeIDs,
 ) (*ParseResult, error) {
 
 	var payload Payload
 
-	if err := json.Unmarshal(
-		raw,
-		&payload,
-	); err != nil {
+	if err := json.Unmarshal(raw, &payload); err != nil {
 		return nil, fmt.Errorf(
 			"unmarshal payload: %w",
 			err,
@@ -46,22 +42,19 @@ func (p *Parser) Parse(
 
 	result := &ParseResult{}
 
+	// ---------------- Initiated ----------------
+
 	for _, item := range payload.InitiatedData {
 
-		event, err := p.extractInitiatedEvent(
-			item,
-		)
+		event, err := p.extractInitiatedEvent(item)
 		if err != nil {
 			return nil, err
 		}
 
-		eventRaw, err := json.Marshal(
-			item,
-		)
+		eventRaw, err := json.Marshal(item)
 		if err != nil {
-
 			return nil, fmt.Errorf(
-				"marshal event payload: %w",
+				"marshal payload: %w",
 				err,
 			)
 		}
@@ -73,70 +66,69 @@ func (p *Parser) Parse(
 			event,
 		)
 
-		initiated :=
-			model.ApplicationInitiated{
+		application := model.Application{
 
-				ApplID: toInt64(
-					item["appl_id"],
-				),
+			RootType: "initiated_data",
 
-				ServiceID: toInt64(
-					item["service_id"],
-				),
+			ApplID: ToInt64(item["appl_id"]),
 
-				ServiceName: toString(
-					item["service_name"],
-				),
+			ServiceID: ToInt64(item["service_id"]),
 
-				ApplRefNo: toString(
-					item["appl_ref_no"],
-				),
+			ServiceName: stringPtr(
+				toString(item["service_name"]),
+			),
 
-				SubmissionDate: parseTime(
-					toString(
-						item["submission_date"],
-					),
-				),
+			AppRefNo: stringPtr(
+				toString(item["appl_ref_no"]),
+			),
 
-				SubmissionLocation: toString(
-					item["submission_location"],
-				),
+			SubmissionLocation: stringPtr(
+				toString(item["submission_location"]),
+			),
 
-				AppliedBy: toString(
-					item["applied_by"],
-				),
+			SubmittedBy: stringPtr(
+				toString(item["applied_by"]),
+			),
 
-				PaymentMode: toString(
-					item["payment_mode"],
-				),
+			SubmissionDate: parseTime(
+				toString(item["submission_date"]),
+			),
 
-				Amount: toFloat64(
-					item["amount"],
-				),
+			Status: stringPtr("Applied"),
+
+			ActionNo: intPtr(0),
+		}
+
+		attributeDetails, ok := item["attribute_details"].(map[string]any)
+		if ok {
+			if ids, ok := attributeIDs[application.ServiceID/1000]; ok {
+				populateApplication(
+					&application,
+					attributeDetails,
+					ids,
+				)
 			}
+		}
 
-		result.InitiatedApps = append(
-			result.InitiatedApps,
-			initiated,
+		result.Application = append(
+			result.Application,
+			application,
 		)
 	}
 
+	// ---------------- Execution ----------------
+
 	for _, item := range payload.ExecutionData {
 
-		event, err := p.extractExecutionEvent(
-			item,
-		)
+		event, err := p.extractExecutionEvent(item)
 		if err != nil {
 			return nil, err
 		}
 
-		eventRaw, err := json.Marshal(
-			item,
-		)
+		eventRaw, err := json.Marshal(item)
 		if err != nil {
-
 			return nil, fmt.Errorf(
-				"marshal event payload: %w",
+				"marshal payload: %w",
 				err,
 			)
 		}
@@ -148,81 +140,51 @@ func (p *Parser) Parse(
 			event,
 		)
 
-		taskDetails, ok :=
-			item["task_details"].(map[string]any)
-
+		taskDetails, ok := item["task_details"].(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf(
 				"task_details missing",
 			)
 		}
 
-		userDetail, _ :=
-			taskDetails["user_detail"].(map[string]any)
+		userDetail, _ := taskDetails["user_detail"].(map[string]any)
 
-		execution :=
-			model.ApplicationExecution{
+		application := model.Application{
 
-				ApplID: toInt64(
-					taskDetails["appl_id"],
-				),
+			RootType: "execution_data",
 
-				ServiceID: toInt64(
-					taskDetails["service_id"],
-				),
+			ApplID: ToInt64(
+				taskDetails["appl_id"],
+			),
 
-				TaskName: toString(
-					taskDetails["task_name"],
-				),
+			ServiceID: ToInt64(
+				taskDetails["service_id"],
+			),
 
-				ActionNo: int(
-					toInt64(
-						taskDetails["action_no"],
-					),
-				),
+			Status: stringPtr(
+				toString(taskDetails["action_taken"]),
+			),
 
-				ActionTaken: toString(
-					taskDetails["action_taken"],
-				),
+			ActionNo: intPtr(
+				int(ToInt64(taskDetails["action_no"])),
+			),
 
-				TaskType: int(
-					toInt64(
-						taskDetails["task_type"],
-					),
-				),
+			SubmittedBy: stringPtr(
+				toString(taskDetails["user_name"]),
+			),
 
-				UserName: toString(
-					taskDetails["user_name"],
-				),
+			SubmissionLocation: stringPtr(
+				toString(userDetail["location_name"]),
+			),
 
-				Designation: toString(
-					userDetail["designation"],
-				),
+			SubmissionDate: parseTime(
+				toString(taskDetails["executed_time"]),
+			),
+		}
 
-				LocationName: toString(
-					userDetail["location_name"],
-				),
-
-				ReceivedTime: parseTime(
-					toString(
-						taskDetails["received_time"],
-					),
-				),
-
-				ExecutedTime: parseTime(
-					toString(
-						taskDetails["executed_time"],
-					),
-				),
-
-				Remarks: toString(
-					taskDetails["remarks"],
-				),
-			}
-
-		result.ExecutionApps = append(
-			result.ExecutionApps,
-			execution,
+		result.Application = append(
+			result.Application,
+			application,
 		)
 	}
 
@@ -238,8 +200,8 @@ func (p *Parser) extractInitiatedEvent(
 	)
 
 	return model.WorkflowEvent{
-		ApplID:    toInt64(data["appl_id"]),
-		ServiceID: toInt64(data["service_id"]),
+		ApplID:    ToInt64(data["appl_id"]),
+		ServiceID: ToInt64(data["service_id"]),
 
 		RootType: "initiated_data",
 
@@ -266,11 +228,11 @@ func (p *Parser) extractExecutionEvent(
 	}
 
 	return model.WorkflowEvent{
-		ApplID:    toInt64(taskDetails["appl_id"]),
-		ServiceID: toInt64(taskDetails["service_id"]),
+		ApplID:    ToInt64(taskDetails["appl_id"]),
+		ServiceID: ToInt64(taskDetails["service_id"]),
 		TaskName:  toString(taskDetails["task_name"]),
-		ActionNo:  int(toInt64(taskDetails["action_no"])),
-		TaskType:  int(toInt64(taskDetails["task_type"])),
+		ActionNo:  int(ToInt64(taskDetails["action_no"])),
+		TaskType:  int(ToInt64(taskDetails["task_type"])),
 		RootType:  "execution_data",
 
 		ReceivedTime: parseTime(
@@ -283,6 +245,134 @@ func (p *Parser) extractExecutionEvent(
 	}, nil
 }
 
+func stringPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+func intPtr(i int) *int {
+	return &i
+}
+
+func parseLGD(value string) (code, name string) {
+
+	parts := strings.SplitN(
+		value,
+		"~",
+		2,
+	)
+
+	if len(parts) != 2 {
+		return "", value
+	}
+
+	return parts[0], parts[1]
+}
+
+func joinName(parts ...string) string {
+
+	var result []string
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+
+		if part != "" {
+			result = append(
+				result,
+				part,
+			)
+		}
+	}
+
+	return strings.Join(
+		result,
+		" ",
+	)
+}
+
+func extractPincode(value string) string {
+
+	fields := strings.Fields(value)
+
+	for _, field := range fields {
+
+		if len(field) != 6 {
+			continue
+		}
+
+		if _, err := strconv.Atoi(field); err == nil {
+			return field
+		}
+	}
+
+	return ""
+}
+
+func populateApplication(
+	app *model.Application,
+	data map[string]any,
+	ids model.AttributeIDs,
+) {
+
+	if value, ok := data[ids.District]; ok {
+
+		code, name := parseLGD(
+			toString(value),
+		)
+
+		app.District = stringPtr(name)
+		app.DistrictLGDCode = stringPtr(code)
+	}
+
+	if value, ok := data[ids.SubDivision]; ok {
+
+		code, name := parseLGD(
+			toString(value),
+		)
+
+		app.SubDivision = stringPtr(name)
+		app.SubDivisionLGDCode = stringPtr(code)
+	}
+
+	if value, ok := data[ids.Block]; ok {
+
+		code, name := parseLGD(
+			toString(value),
+		)
+
+		app.Block = stringPtr(name)
+		app.BlockLGDCode = stringPtr(code)
+	}
+
+	if value, ok := data[ids.Pincode]; ok {
+
+		_, office := parseLGD(
+			toString(value),
+		)
+
+		pincode := extractPincode(
+			office,
+		)
+
+		app.Pincode = stringPtr(
+			pincode,
+		)
+	}
+
+	applicantName := joinName(
+		toString(data[ids.Salutation]),
+		toString(data[ids.FirstName]),
+		toString(data[ids.MiddleName]),
+		toString(data[ids.LastName]),
+	)
+
+	app.ApplicantName = stringPtr(
+		applicantName,
+	)
+}
+
 func toString(v any) string {
 	s, ok := v.(string)
 	if !ok {
@@ -292,7 +382,7 @@ func toString(v any) string {
 	return s
 }
 
-func toInt64(v any) int64 {
+func ToInt64(v any) int64 {
 	switch x := v.(type) {
 
 	case float64:

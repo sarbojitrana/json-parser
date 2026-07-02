@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"parser/internal/model"
 
@@ -119,10 +121,305 @@ func (r *Repository) CreateWorkflowEvent(
 	return id, err
 }
 
-func(r *Repository) ServiceGroupExists(
+func (r *Repository) CreateApplication(
+	ctx context.Context,
+	app model.Application,
+) error {
+
+	_, err := r.db.Exec(
+		ctx,
+		`
+		INSERT INTO applications(
+			root_type,
+			appl_id,
+			app_ref_no,
+			service_id,
+			service_name,
+			submission_location,
+			submitted_by,
+			submission_date,
+			status,
+			action_no,
+			applicant_name,
+			district,
+			district_lgd_code,
+			sub_division,
+			sub_division_lgd_code,
+			block,
+			block_lgd_code,
+			pincode
+		)
+		VALUES(
+			$1,$2,$3,$4,$5,$6,$7,$8,
+			$9,$10,$11,$12,$13,$14,
+			$15,$16,$17,$18
+		)
+		`,
+		app.RootType,
+		app.ApplID,
+		app.AppRefNo,
+		app.ServiceID,
+		app.ServiceName,
+		app.SubmissionLocation,
+		app.SubmittedBy,
+		app.SubmissionDate,
+		app.Status,
+		app.ActionNo,
+		app.ApplicantName,
+		app.District,
+		app.DistrictLGDCode,
+		app.SubDivision,
+		app.SubDivisionLGDCode,
+		app.Block,
+		app.BlockLGDCode,
+		app.Pincode,
+	)
+
+	return err
+}
+
+func (r *Repository) GetApplications(
+	ctx context.Context,
+	from time.Time,
+	to time.Time,
+	page int,
+	limit int,
+) (*model.PaginatedResponse[model.Application], error) {
+
+	if page < 1 {
+		page = 1
+	}
+
+	if limit < 1 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+
+	var total int
+
+	err := r.db.QueryRow(
+		ctx,
+		`
+		SELECT COUNT(*)
+		FROM applications
+		WHERE submission_date >= $1
+		AND submission_date <= $2
+		`,
+		from,
+		to,
+	).Scan(&total)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.db.Query(
+		ctx,
+		`
+		SELECT
+			root_type,
+			appl_id,
+			app_ref_no,
+			service_id,
+			service_name,
+			submission_location,
+			submitted_by,
+			submission_date,
+			status,
+			action_no,
+			applicant_name,
+			district,
+			district_lgd_code,
+			sub_division,
+			sub_division_lgd_code,
+			block,
+			block_lgd_code,
+			pincode
+		FROM applications
+		WHERE submission_date >= $1
+		AND submission_date <= $2
+		ORDER BY
+    		submission_date DESC,
+    		appl_id DESC,
+    		action_no ASC
+		LIMIT $3
+		OFFSET $4
+		`,
+		from,
+		to,
+		limit,
+		offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var applications []model.Application
+
+	for rows.Next() {
+
+		var app model.Application
+
+		if err := rows.Scan(
+			&app.RootType,
+			&app.ApplID,
+			&app.AppRefNo,
+			&app.ServiceID,
+			&app.ServiceName,
+			&app.SubmissionLocation,
+			&app.SubmittedBy,
+			&app.SubmissionDate,
+			&app.Status,
+			&app.ActionNo,
+			&app.ApplicantName,
+			&app.District,
+			&app.DistrictLGDCode,
+			&app.SubDivision,
+			&app.SubDivisionLGDCode,
+			&app.Block,
+			&app.BlockLGDCode,
+			&app.Pincode,
+		); err != nil {
+			return nil, err
+		}
+
+		applications = append(
+			applications,
+			app,
+		)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	totalPages := 0
+	if total > 0 {
+		totalPages = (total + limit - 1) / limit
+	}
+
+	return &model.PaginatedResponse[model.Application]{
+		Data:       applications,
+		Page:       page,
+		Limit:      limit,
+		Total:      total,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (r *Repository) GetAttributeIDs(
 	ctx context.Context,
 	serviceGroupID int64,
-)(bool,error){
+) (model.AttributeIDs, error) {
+
+	stmt := `
+		SELECT field_name, field_id
+		FROM service_mappings
+		WHERE service_group_id = @service_group_id
+		AND (
+			(
+				section_name = 'Applicant''s Address Details'
+				AND (
+					(field_name = 'District' AND input_type = 'custLGDHierarchy')
+					OR
+					(field_name = 'Block' AND input_type = 'custLGDHierarchy')
+					OR
+					(field_name = 'Sub-Division' AND input_type = 'custLGDHierarchy')
+					OR
+					(field_name = 'Pincode & Post Office' AND input_type = 'dropDown')
+				)
+			)
+			OR
+			(
+				section_name = 'Applicant''s Personal Details'
+				AND (
+					(field_name = 'Applicant''s Salutation')
+					OR
+					(field_name = 'Applicant''s First Name')
+					OR
+					(field_name = 'Applicant''s Middle Name')
+					OR
+					(field_name = 'Applicant''s Last Name')
+				)
+			)
+		)
+	`
+
+	rows, err := r.db.Query(
+		ctx,
+		stmt,
+		pgx.NamedArgs{
+			"service_group_id": serviceGroupID,
+		},
+	)
+	if err != nil {
+		return model.AttributeIDs{}, fmt.Errorf(
+			"scan attribute ids: %w",
+			err,
+		)
+	}
+	defer rows.Close()
+
+	var ids model.AttributeIDs
+
+	for rows.Next() {
+
+		var fieldName string
+		var fieldID string
+
+		if err := rows.Scan(
+			&fieldName,
+			&fieldID,
+		); err != nil {
+			return model.AttributeIDs{}, fmt.Errorf(
+				"scan attribute ids: %w",
+				err,
+			)
+		}
+
+		switch fieldName {
+
+		case "District":
+			ids.District = fieldID
+
+		case "Block":
+			ids.Block = fieldID
+
+		case "Sub-Division":
+			ids.SubDivision = fieldID
+
+		case "Pincode & Post Office":
+			ids.Pincode = fieldID
+
+		case "Applicant's Salutation":
+			ids.Salutation = fieldID
+
+		case "Applicant's First Name":
+			ids.FirstName = fieldID
+
+		case "Applicant's Middle Name":
+			ids.MiddleName = fieldID
+
+		case "Applicant's Last Name":
+			ids.LastName = fieldID
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return model.AttributeIDs{}, fmt.Errorf(
+			"iterate attribute ids: %w",
+			err,
+		)
+	}
+
+	return ids, nil
+}
+
+func (r *Repository) ServiceGroupExists(
+	ctx context.Context,
+	serviceGroupID int64,
+) (bool, error) {
 	var exists bool
 
 	err := r.db.QueryRow(
@@ -137,148 +434,7 @@ func(r *Repository) ServiceGroupExists(
 		serviceGroupID,
 	).Scan(&exists)
 
-	return exists,err
-}
-
-func (r *Repository) CreateApplicationInitiated(
-	ctx context.Context,
-	app model.ApplicationInitiated,
-) error {
-
-	_, err := r.db.Exec(
-		ctx,
-		`
-		INSERT INTO application_initiated(
-			appl_id,
-			service_id,
-			service_name,
-			appl_ref_no,
-			submission_date,
-			submission_location,
-			applied_by,
-			payment_mode,
-			amount
-		)
-		VALUES(
-			$1,$2,$3,$4,$5,
-			$6,$7,$8,$9
-		)
-		ON CONFLICT(
-			appl_id,
-			service_id
-		)
-		DO UPDATE SET
-			service_name =
-				EXCLUDED.service_name,
-
-			appl_ref_no =
-				EXCLUDED.appl_ref_no,
-
-			submission_date =
-				EXCLUDED.submission_date,
-
-			submission_location =
-				EXCLUDED.submission_location,
-
-			applied_by =
-				EXCLUDED.applied_by,
-
-			payment_mode =
-				EXCLUDED.payment_mode,
-
-			amount =
-				EXCLUDED.amount
-
-		`,
-		app.ApplID,
-		app.ServiceID,
-		app.ServiceName,
-		app.ApplRefNo,
-		app.SubmissionDate,
-		app.SubmissionLocation,
-		app.AppliedBy,
-		app.PaymentMode,
-		app.Amount,
-	)
-
-	return err
-}
-
-func (r *Repository) CreateApplicationExecution(
-	ctx context.Context,
-	app model.ApplicationExecution,
-) error {
-
-	_, err := r.db.Exec(
-		ctx,
-		`
-		INSERT INTO application_execution(
-			appl_id,
-			service_id,
-			task_name,
-			action_no,
-			action_taken,
-			task_type,
-			user_name,
-			designation,
-			location_name,
-			received_time,
-			executed_time,
-			remarks
-		)
-		VALUES(
-			$1,$2,$3,$4,$5,$6,
-			$7,$8,$9,$10,$11,
-			$12
-		)
-		ON CONFLICT(
-			appl_id,
-			service_id,
-			action_no
-		)
-		DO UPDATE SET
-			task_name =
-				EXCLUDED.task_name,
-
-			action_taken =
-				EXCLUDED.action_taken,
-
-			task_type =
-				EXCLUDED.task_type,
-
-			user_name =
-				EXCLUDED.user_name,
-
-			designation =
-				EXCLUDED.designation,
-
-			location_name =
-				EXCLUDED.location_name,
-
-			received_time =
-				EXCLUDED.received_time,
-
-			executed_time =
-				EXCLUDED.executed_time,
-
-			remarks =
-				EXCLUDED.remarks
-		`,
-		app.ApplID,
-		app.ServiceID,
-		app.TaskName,
-		app.ActionNo,
-		app.ActionTaken,
-		app.TaskType,
-		app.UserName,
-		app.Designation,
-		app.LocationName,
-		app.ReceivedTime,
-		app.ExecutedTime,
-		app.Remarks,
-	)
-
-	return err
+	return exists, err
 }
 
 func (r *Repository) GetWorkflowEvents(
@@ -356,127 +512,6 @@ func (r *Repository) GetWorkflowEvents(
 
 	return events, nil
 }
-
-
-func (r *Repository) GetApplicationInitiated(
-	ctx context.Context,
-	applID int64,
-	serviceID int64,
-) (*model.ApplicationInitiated, error) {
-
-	var app model.ApplicationInitiated
-
-	err := r.db.QueryRow(
-		ctx,
-		`
-		SELECT
-			id,
-			appl_id,
-			service_id,
-			service_name,
-			appl_ref_no,
-			submission_date,
-			submission_location,
-			applied_by,
-			payment_mode,
-			amount,
-			created_at
-		FROM application_initiated
-		WHERE appl_id = $1
-		AND service_id = $2
-		`,
-		applID,
-		serviceID,
-	).Scan(
-		&app.ID,
-		&app.ApplID,
-		&app.ServiceID,
-		&app.ServiceName,
-		&app.ApplRefNo,
-		&app.SubmissionDate,
-		&app.SubmissionLocation,
-		&app.AppliedBy,
-		&app.PaymentMode,
-		&app.Amount,
-		&app.CreatedAt,
-	)
-
-	if err != nil {
-
-		if err == pgx.ErrNoRows {
-			return nil, nil
-		}
-
-		return nil, err
-	}
-
-	return &app, nil
-}
-
-func (r *Repository) GetApplicationExecution(
-	ctx context.Context,
-	applID int64,
-	serviceID int64,
-	actionNo int,
-) (*model.ApplicationExecution, error) {
-
-	var execution model.ApplicationExecution
-
-	err := r.db.QueryRow(
-		ctx,
-		`
-		SELECT
-			id,
-			appl_id,
-			service_id,
-			task_name,
-			action_no,
-			action_taken,
-			task_type,
-			user_name,
-			designation,
-			location_name,
-			received_time,
-			executed_time,
-			remarks,
-			created_at
-		FROM application_execution
-		WHERE appl_id = $1
-		AND service_id = $2
-		AND action_no = $3
-		`,
-		applID,
-		serviceID,
-		actionNo,
-	).Scan(
-		&execution.ID,
-		&execution.ApplID,
-		&execution.ServiceID,
-		&execution.TaskName,
-		&execution.ActionNo,
-		&execution.ActionTaken,
-		&execution.TaskType,
-		&execution.UserName,
-		&execution.Designation,
-		&execution.LocationName,
-		&execution.ReceivedTime,
-		&execution.ExecutedTime,
-		&execution.Remarks,
-		&execution.CreatedAt,
-	)
-
-	if err != nil {
-
-		if err == pgx.ErrNoRows {
-			return nil, nil
-		}
-
-		return nil, err
-	}
-
-	return &execution, nil
-}
-
 
 func (r *Repository) GetMappingsByServiceID(
 	ctx context.Context,

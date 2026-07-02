@@ -3,8 +3,8 @@ package model
 import "time"
 
 type Service struct {
-	ServiceGroupID   int64  `db:"service_group_id"`
-	ServiceName string `db:"service_name"`
+	ServiceGroupID int64  `db:"service_group_id"`
+	ServiceName    string `db:"service_name"`
 }
 
 type ServiceMapping struct {
@@ -47,58 +47,31 @@ type WorkflowEvent struct {
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }
 
-type ApplicationInitiated struct {
-	ID int64 `db:"id" json:"id"`
+type Application struct {
+	RootType           string     `json:"root_type" db:"root_type"`
+	ApplID             int64      `json:"appl_id" db:"appl_id"`
+	AppRefNo           *string    `json:"app_ref_no" db:"app_ref_no"`
+	ServiceID          int64      `json:"service_id" db:"service_id"`
+	ServiceName        *string    `json:"service_name" db:"service_name"`
+	SubmissionLocation *string    `json:"submission_location" db:"submission_location"`
+	SubmittedBy        *string    `json:"submitted_by" db:"submitted_by"`
+	SubmissionDate     *time.Time `json:"submission_date" db:"submission_date"`
 
-	ApplID int64 `db:"appl_id" json:"appl_id"`
+	Status   *string `json:"status" db:"status"`
+	ActionNo *int    `json:"action_no" db:"action_no"`
 
-	ServiceID int64 `db:"service_id" json:"service_id"`
+	ApplicantName *string `json:"applicant_name" db:"applicant_name"`
 
-	ServiceName string `db:"service_name" json:"service_name"`
+	District        *string `json:"district" db:"district"`
+	DistrictLGDCode *string `json:"district_lgd_code" db:"district_lgd_code"`
 
-	ApplRefNo string `db:"appl_ref_no" json:"appl_ref_no"`
+	SubDivision        *string `json:"sub_division" db:"sub_division"`
+	SubDivisionLGDCode *string `json:"sub_division_lgd_code" db:"sub_division_lgd_code"`
 
-	SubmissionDate *time.Time `db:"submission_date" json:"submission_date"`
+	Block        *string `json:"block" db:"block"`
+	BlockLGDCode *string `json:"block_lgd_code" db:"block_lgd_code"`
 
-	SubmissionLocation string `db:"submission_location" json:"submission_location"`
-
-	AppliedBy string `db:"applied_by" json:"applied_by"`
-
-	PaymentMode string `db:"payment_mode" json:"payment_mode"`
-
-	Amount float64 `db:"amount" json:"amount"`
-
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
-}
-
-type ApplicationExecution struct {
-	ID int64 `db:"id" json:"id"`
-
-	ApplID int64 `db:"appl_id" json:"appl_id"`
-
-	ServiceID int64 `db:"service_id" json:"service_id"`
-
-	TaskName string `db:"task_name" json:"task_name"`
-
-	ActionNo int `db:"action_no" json:"action_no"`
-
-	ActionTaken string `db:"action_taken" json:"action_taken"`
-
-	TaskType int `db:"task_type" json:"task_type"`
-
-	UserName string `db:"user_name" json:"user_name"`
-
-	Designation string `db:"designation" json:"designation"`
-
-	LocationName string `db:"location_name" json:"location_name"`
-
-	ReceivedTime *time.Time `db:"received_time" json:"received_time"`
-
-	ExecutedTime *time.Time `db:"executed_time" json:"executed_time"`
-
-	Remarks string `db:"remarks" json:"remarks"`
-
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	Pincode *string `json:"pincode" db:"pincode"`
 }
 
 type Log struct {
@@ -113,4 +86,30 @@ type Log struct {
 	Metadata []byte `db:"metadata" json:"metadata"`
 
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
+}
+
+type AttributeIDs struct {
+	District string `db:"district"`
+
+	Block string `db:"block"`
+
+	SubDivision string `db:"sub_division"`
+
+	Pincode string `db:"pincode"`
+
+	FirstName string `db:"first_name"`
+
+	MiddleName string `db:"middle_name"`
+
+	LastName string `db:"last_name"`
+
+	Salutation string `db:"salutation"`
+}
+
+type PaginatedResponse[T interface{}] struct {
+	Data       []T `json:"data"`
+	Page       int `json:"page"`
+	Limit      int `json:"limit"`
+	Total      int `json:"total"`
+	TotalPages int `json:"totalPages"`
 }

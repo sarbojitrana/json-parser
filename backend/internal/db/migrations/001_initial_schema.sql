@@ -43,66 +43,49 @@ CREATE TABLE workflow_events(
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE application_initiated(
+CREATE TABLE applications (
     id BIGSERIAL PRIMARY KEY,
 
     appl_id BIGINT NOT NULL,
     service_id BIGINT NOT NULL,
 
+    root_type TEXT NOT NULL,
+
+    app_ref_no TEXT,
     service_name TEXT,
 
-    appl_ref_no TEXT,
-
-    submission_date TIMESTAMP,
-
     submission_location TEXT,
+    submitted_by TEXT,
 
-    applied_by TEXT,
+    submission_date TIMESTAMPTZ,
 
-    payment_mode TEXT,
+    status TEXT,
+    action_no INT,
 
-    amount NUMERIC(12,2),
+    applicant_name TEXT,
 
-    created_at TIMESTAMP DEFAULT NOW(),
+    district TEXT,
+    district_lgd_code TEXT,
 
-    UNIQUE(appl_id, service_id)
+    sub_division TEXT,
+    sub_division_lgd_code TEXT,
+
+    block TEXT,
+    block_lgd_code TEXT,
+
+    pincode TEXT,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE application_execution(
-    id BIGSERIAL PRIMARY KEY,
+CREATE INDEX idx_applications_submission_date
+ON applications(submission_date DESC);
 
-    appl_id BIGINT NOT NULL,
+CREATE INDEX idx_applications_app_id
+ON applications(appl_id);
 
-    service_id BIGINT NOT NULL,
-
-    task_name TEXT,
-
-    action_no INT NOT NULL,
-
-    action_taken TEXT,
-
-    task_type INT,
-
-    user_name TEXT,
-
-    designation TEXT,
-
-    location_name TEXT,
-
-    received_time TIMESTAMP,
-
-    executed_time TIMESTAMP,
-
-    remarks TEXT,
-
-    created_at TIMESTAMP DEFAULT NOW(),
-
-    UNIQUE(
-        appl_id,
-        service_id,
-        action_no
-    )
-);
+CREATE INDEX idx_applications_service_id
+ON applications(service_id);
 
 CREATE TABLE logs(
     id BIGSERIAL PRIMARY KEY,
@@ -118,7 +101,7 @@ CREATE TABLE logs(
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_workflow_appl_id
+CREATE INDEX idx_workflow_app_id
 ON workflow_events(appl_id);
 
 CREATE INDEX idx_workflow_service_id
@@ -129,21 +112,3 @@ ON service_mappings(service_group_id);
 
 CREATE INDEX idx_service_mapping_field_id
 ON service_mappings(field_id);
-
-CREATE INDEX idx_app_initiated_appl_id
-ON application_initiated(appl_id);
-
-CREATE INDEX idx_app_initiated_service_id
-ON application_initiated(service_id);
-
-CREATE INDEX idx_app_execution_appl_id
-ON application_execution(appl_id);
-
-CREATE INDEX idx_app_execution_service_id
-ON application_execution(service_id);
-
-CREATE INDEX idx_app_execution_action_no
-ON application_execution(action_no);
-
-CREATE INDEX idx_app_execution_task_name
-ON application_execution(task_name);
