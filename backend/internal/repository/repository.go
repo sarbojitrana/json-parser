@@ -35,8 +35,7 @@ func (r *Repository) CreateService(
 		)
 		VALUES($1, $2)
 		ON CONFLICT(service_group_id)
-		DO UPDATE SET
-			service_name = EXCLUDED.service_name
+		DO NOTHING
 		`,
 		service.ServiceGroupID,
 		service.ServiceName,
@@ -64,12 +63,7 @@ func (r *Repository) CreateMapping(
 		)
 		VALUES($1,$2,$3,$4,$5,$6,$7)
 		ON CONFLICT(service_group_id, field_id)
-		DO UPDATE SET
-			section_name = EXCLUDED.section_name,
-			section_id = EXCLUDED.section_id,
-			field_name = EXCLUDED.field_name,
-			input_type = EXCLUDED.input_type,
-			field_set_id = EXCLUDED.field_set_id
+		DO NOTHING
 		`,
 		mapping.ServiceGroupID,
 		mapping.SectionName,
