@@ -1,19 +1,17 @@
 import { useState } from "react"
 import { api } from "../api"
+import { toast } from "react-toastify"
 
 function UploadSpreadsheet() {
-    const [serviceGroupID, setServiceGroupID] =
-        useState("")
-
-    const [serviceName, setServiceName] =
-        useState("")
-
-    const [file, setFile] =
-        useState<File | null>(null)
+    const [serviceGroupID, setServiceGroupID] = useState("")
+    const [serviceName, setServiceName] = useState("")
+    const [file, setFile] = useState<File | null>(null)
 
     async function handleUpload() {
         if (!file) {
-            alert("Select a file")
+            toast.dark("Please select a file to proceed.", {
+                style: { backgroundColor: "#374151", color: "#f9fafb" }
+            })
             return
         }
 
@@ -39,18 +37,18 @@ function UploadSpreadsheet() {
                 "/spreadsheet",
                 formData,
             )
-            console.log("SUCCESS", response)
-            console.log("DATA", response.data)
+            // console.log("SUCCESS", response)
+            // console.log("DATA", response.data)
 
-            alert(
-                response.data.message,
-            )
+            toast.success(response.data.message || "Spreadsheet Ingested Successfully", {
+                style: { backgroundColor: "#f3f4f6", color: "#111827", borderLeft: "4px solid #10b981" }
+            })
         } catch (err: any) {
-            console.log("ERROR", err)
-            console.log("RESPONSE", err?.response)
-            console.log("DATA", err?.response?.data)
-                
-            alert(err?.message ?? "failed")
+            // console.log("ERROR", err)
+            const errMsg = err?.response?.data?.error || err?.message || "Upload failed"
+            toast.error(errMsg, {
+                style: { backgroundColor: "#f3f4f6", color: "#111827", borderLeft: "4px solid #ef4444" }
+            })
         }
     }
 
