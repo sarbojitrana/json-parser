@@ -5,23 +5,19 @@ import (
 	"fmt"
 	"time"
 
-	"parser/internal/config"
 	"parser/internal/model"
-	"parser/internal/security"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Repository struct {
-	db  *pgxpool.Pool
-	cfg *config.Config
+	db *pgxpool.Pool
 }
 
-func New(db *pgxpool.Pool, cfg *config.Config) *Repository {
+func New(db *pgxpool.Pool) *Repository {
 	return &Repository{
-		db:  db,
-		cfg: cfg,
+		db: db,
 	}
 }
 
@@ -86,10 +82,6 @@ func (r *Repository) CreateWorkflowEvent(
 	event model.WorkflowEvent,
 ) (int64, error) {
 
-	if enc, err := security.EncryptPayload(string(event.RawPayload), r.cfg.Security.SecretKey); err == nil {
-		event.RawPayload = []byte(enc)
-	}
-
 	var id int64
 
 	err := r.db.QueryRow(
@@ -127,20 +119,6 @@ func (r *Repository) CreateApplication(
 	ctx context.Context,
 	app model.Application,
 ) error {
-
-	app.AppRefNo = encryptPtr(app.AppRefNo, r.cfg.Security.SecretKey)
-	app.ServiceName = encryptPtr(app.ServiceName, r.cfg.Security.SecretKey)
-	app.SubmissionLocation = encryptPtr(app.SubmissionLocation, r.cfg.Security.SecretKey)
-	app.SubmittedBy = encryptPtr(app.SubmittedBy, r.cfg.Security.SecretKey)
-	app.Status = encryptPtr(app.Status, r.cfg.Security.SecretKey)
-	app.ApplicantName = encryptPtr(app.ApplicantName, r.cfg.Security.SecretKey)
-	app.District = encryptPtr(app.District, r.cfg.Security.SecretKey)
-	app.DistrictLGDCode = encryptPtr(app.DistrictLGDCode, r.cfg.Security.SecretKey)
-	app.SubDivision = encryptPtr(app.SubDivision, r.cfg.Security.SecretKey)
-	app.SubDivisionLGDCode = encryptPtr(app.SubDivisionLGDCode, r.cfg.Security.SecretKey)
-	app.Block = encryptPtr(app.Block, r.cfg.Security.SecretKey)
-	app.BlockLGDCode = encryptPtr(app.BlockLGDCode, r.cfg.Security.SecretKey)
-	app.Pincode = encryptPtr(app.Pincode, r.cfg.Security.SecretKey)
 
 	_, err := r.db.Exec(
 		ctx,
@@ -299,20 +277,6 @@ func (r *Repository) GetApplications(
 		); err != nil {
 			return nil, err
 		}
-
-		app.AppRefNo = decryptPtr(app.AppRefNo, r.cfg.Security.SecretKey)
-		app.ServiceName = decryptPtr(app.ServiceName, r.cfg.Security.SecretKey)
-		app.SubmissionLocation = decryptPtr(app.SubmissionLocation, r.cfg.Security.SecretKey)
-		app.SubmittedBy = decryptPtr(app.SubmittedBy, r.cfg.Security.SecretKey)
-		app.Status = decryptPtr(app.Status, r.cfg.Security.SecretKey)
-		app.ApplicantName = decryptPtr(app.ApplicantName, r.cfg.Security.SecretKey)
-		app.District = decryptPtr(app.District, r.cfg.Security.SecretKey)
-		app.DistrictLGDCode = decryptPtr(app.DistrictLGDCode, r.cfg.Security.SecretKey)
-		app.SubDivision = decryptPtr(app.SubDivision, r.cfg.Security.SecretKey)
-		app.SubDivisionLGDCode = decryptPtr(app.SubDivisionLGDCode, r.cfg.Security.SecretKey)
-		app.Block = decryptPtr(app.Block, r.cfg.Security.SecretKey)
-		app.BlockLGDCode = decryptPtr(app.BlockLGDCode, r.cfg.Security.SecretKey)
-		app.Pincode = decryptPtr(app.Pincode, r.cfg.Security.SecretKey)
 
 		applications = append(
 			applications,
@@ -525,10 +489,6 @@ func (r *Repository) GetWorkflowEvents(
 			return nil, err
 		}
 
-		if dec, err := security.DecryptPayload(string(event.RawPayload), r.cfg.Security.SecretKey); err == nil {
-			event.RawPayload = []byte(dec)
-		}
-
 		events = append(
 			events,
 			event,
@@ -690,24 +650,4 @@ func (r *Repository) GetLogs(
 	}
 
 	return logs, nil
-}
-
-func encryptPtr(val *string, key string) *string {
-	if val == nil {
-		return nil
-	}
-	if enc, err := security.EncryptPayload(*val, key); err == nil {
-		return &enc
-	}
-	return val
-}
-
-func decryptPtr(val *string, key string) *string {
-	if val == nil {
-		return nil
-	}
-	if dec, err := security.DecryptPayload(*val, key); err == nil {
-		return &dec
-	}
-	return val
 }

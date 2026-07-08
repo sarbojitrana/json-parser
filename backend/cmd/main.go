@@ -40,7 +40,6 @@ func main() {
 
 	repo := repository.New(
 		srv.DB.Pool,
-		cfg,
 	)
 
 	h := handler.New(
