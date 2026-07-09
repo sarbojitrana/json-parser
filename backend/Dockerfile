@@ -8,7 +8,7 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd
-RUN go install github.com/jackc/tern/v2@latest
+RUN go install github.com/jackc/tern/v2@2.4.0
 
 FROM alpine:3.20 AS migrate
 
