@@ -1,0 +1,75 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: json-parser-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-json_parser}
+    ports:
+      - "5432:5432"
+    volumes:
+      - json-parser-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-json_parser}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: ./backend
+      target: migrate
+    container_name: json-parser-migrate
+    environment:
+      PARSER_DATABASE_HOST: db
+      PARSER_DATABASE_PORT: "5432"
+      PARSER_DATABASE_USER: ${POSTGRES_USER:-postgres}
+      PARSER_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      PARSER_DATABASE_NAME: ${POSTGRES_DB:-json_parser}
+      PARSER_DATABASE_SSL_MODE: disable
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./backend
+    container_name: json-parser-backend
+    restart: unless-stopped
+    environment:
+      PARSER_PRIMARY.ENV: local
+      PARSER_SERVER.PORT: "5555"
+      PARSER_SERVER.READ_TIMEOUT: "30"
+      PARSER_SERVER.WRITE_TIMEOUT: "30"
+      PARSER_SERVER.IDLE_TIMEOUT: "60"
+      PARSER_SERVER.CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+      PARSER_DATABASE.HOST: db
+      PARSER_DATABASE.PORT: "5432"
+      PARSER_DATABASE.USER: ${POSTGRES_USER:-postgres}
+      PARSER_DATABASE.PASSWORD: ${POSTGRES_PASSWORD:-password}
+      PARSER_DATABASE.NAME: ${POSTGRES_DB:-json_parser}
+      PARSER_DATABASE.SSL_MODE: disable
+      PARSER_DATABASE.MAX_OPEN_CONNS: "25"
+      PARSER_DATABASE.MAX_IDLE_CONNS: "25"
+      PARSER_DATABASE.CONN_MAX_LIFETIME: "300"
+      PARSER_DATABASE.CONN_MAX_IDLE_TIME: "300"
+    ports:
+      - "5555:5555"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: json-parser-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  json-parser-db-data:
