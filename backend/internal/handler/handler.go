@@ -203,8 +203,7 @@ func (h *Handler) UploadWorkflow(c echo.Context) error {
 		if _, ok := validServices[serviceID]; ok {
 			continue
 		}
-
-		serviceGroupID := serviceID / 1000
+		serviceGroupID,_ := strconv.ParseInt(strconv.Itoa(int(serviceID))[:4], 10, 64 )
 
 		exists, ok := serviceGroups[serviceGroupID]
 

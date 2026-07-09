@@ -101,7 +101,8 @@ func (p *Parser) Parse(
 
 		attributeDetails, ok := item["attribute_details"].(map[string]any)
 		if ok {
-			if ids, ok := attributeIDs[application.ServiceID/1000]; ok {
+			serviceGroupID, _ := strconv.ParseInt(strconv.Itoa(int(application.ServiceID))[:4], 10, 64)
+			if ids, ok := attributeIDs[serviceGroupID]; ok {
 				populateApplication(
 					&application,
 					attributeDetails,
