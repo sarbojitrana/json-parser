@@ -28,10 +28,5 @@ func Register(
 		h.GetApplications,
 	)
 
-	api.DELETE(
-		"/applications/:appl_id",
-		h.DeleteApplication,
-	)
-
 	api.GET("/logs", h.GetLogs)
 }

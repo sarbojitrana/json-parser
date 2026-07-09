@@ -550,29 +550,6 @@ func (r *Repository) GetMappingsByServiceID(
 	return mappings, nil
 }
 
-func (r *Repository) DeleteApplication(
-	ctx context.Context,
-	applID int64,
-	serviceID int64,
-	rootType string,
-) error {
-
-	_, err := r.db.Exec(
-		ctx,
-		`
-		DELETE
-		FROM workflow_events
-		WHERE appl_id = $1
-		AND service_id = $2
-		AND root_type = $3
-		`,
-		applID,
-		serviceID,
-		rootType,
-	)
-
-	return err
-}
 
 func (r *Repository) CreateLog(
 	ctx context.Context,
