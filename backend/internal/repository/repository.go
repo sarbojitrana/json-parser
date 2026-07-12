@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -82,6 +83,9 @@ func (r *Repository) CreateWorkflowEvent(
 	event model.WorkflowEvent,
 ) (int64, error) {
 
+	if enc, err := security.EncryptPayload(string(event.RawPayload), r.cfg.Security.SecretKey); err == nil {
+		event.RawPayload = []byte(fmt.Sprintf("%q", enc))
+	}
 	var id int64
 
 	err := r.db.QueryRow(
@@ -487,6 +491,17 @@ func (r *Repository) GetWorkflowEvents(
 			&event.CreatedAt,
 		); err != nil {
 			return nil, err
+		}
+
+		var hexStr string
+		if err := json.Unmarshal(event.RawPayload, &hexStr); err == nil {
+			if dec, err := security.DecryptPayload(hexStr, r.cfg.Security.SecretKey); err == nil {
+				event.RawPayload = []byte(dec)
+			}
+		} else {
+			if dec, err := security.DecryptPayload(string(event.RawPayload), r.cfg.Security.SecretKey); err == nil {
+				event.RawPayload = []byte(dec)
+			}
 		}
 
 		events = append(
