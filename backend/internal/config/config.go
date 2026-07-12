@@ -1,9 +1,13 @@
 package config
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	_ "github.com/joho/godotenv/autoload"
@@ -15,6 +19,11 @@ type Config struct {
 	Primary  Primary        `koanf:"primary" validate:"required"`
 	Server   ServerConfig   `koanf:"server" validate:"required"`
 	Database DatabaseConfig `koanf:"database" validate:"required"`
+	Security SecurityConfig
+}
+
+type SecurityConfig struct {
+	SecretKey string
 }
 
 type Primary struct {
@@ -173,5 +182,24 @@ func LoadConfig() (*Config, error) {
 		)
 	}
 
+	mainConfig.Security.SecretKey = generateSecureDynamicKey()
+
 	return mainConfig, nil
+}
+
+func generateSecureDynamicKey() string {
+	start := time.Now()
+	h := sha256.New()
+	for i := 0; i < 1000; i++ {
+		h.Write([]byte("latency_seed"))
+	}
+	latency := time.Since(start).Nanoseconds()
+	timestamp := time.Now().UnixNano()
+
+	randBuf := make([]byte, 16)
+	_, _ = rand.Read(randBuf)
+
+	seed := fmt.Sprintf("%d:%d:%s", timestamp, latency, hex.EncodeToString(randBuf))
+	hash := sha256.Sum256([]byte(seed))
+	return hex.EncodeToString(hash[:])
 }
