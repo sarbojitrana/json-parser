@@ -42,7 +42,6 @@ func (p *Parser) Parse(
 
 	result := &ParseResult{}
 
-	// ---------------- Initiated ----------------
 
 	for _, item := range payload.InitiatedData {
 
@@ -116,8 +115,6 @@ func (p *Parser) Parse(
 			application,
 		)
 	}
-
-	// ---------------- Execution ----------------
 
 	for _, item := range payload.ExecutionData {
 

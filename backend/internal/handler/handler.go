@@ -30,7 +30,6 @@ func New(repo *repository.Repository) *Handler {
 	}
 }
 
-
 func (h *Handler) UploadWorkflow(c echo.Context) error {
 
 	file, err := c.FormFile("file")
@@ -128,7 +127,7 @@ func (h *Handler) UploadWorkflow(c echo.Context) error {
 		if _, ok := validServices[serviceID]; ok {
 			continue
 		}
-		serviceGroupID,_ := strconv.ParseInt(strconv.Itoa(int(serviceID))[:4], 10, 64 )
+		serviceGroupID, _ := strconv.ParseInt(strconv.Itoa(int(serviceID))[:4], 10, 64)
 
 		exists, ok := serviceGroups[serviceGroupID]
 
@@ -289,6 +288,14 @@ func (h *Handler) UploadWorkflow(c echo.Context) error {
 
 		applicationsCount++
 	}
+	_ = h.repo.CreateLog(
+		c.Request().Context(),
+		model.Log{
+			Level:   LogLevelInfo,
+			Source:  "UploadWorkflow",
+			Message: "Workflow Uploaded",
+		},
+	)
 
 	return c.JSON(
 		http.StatusCreated,
@@ -474,6 +481,14 @@ func (h *Handler) UploadSpreadsheet(c echo.Context) error {
 			)
 		}
 	}
+	_ = h.repo.CreateLog(
+		c.Request().Context(),
+		model.Log{
+			Level:   LogLevelInfo,
+			Source:  "UploadSpreadsheet",
+			Message: "Spreadsheet Uploaded",
+		},
+	)
 
 	return c.JSON(
 		http.StatusCreated,
